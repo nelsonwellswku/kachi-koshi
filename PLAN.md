@@ -23,8 +23,14 @@ A QWOP-style 3D sumo game built in C# with Raylib-cs. The player controls indivi
 
 ## Handoff
 
-**Current state:** Planning only. No prototype or playtest results yet.
+**Current state:** M1a complete. One articulated placeholder wrestler drops 8 cm and settles into a wide stance on the practice floor. The ring outline, static padded post, and both feet are visible from the fixed rear camera.
 
-**Next available task (M1a):** Create a runnable C# practice scene with a floor, ring outline, padded post, fixed camera, and one physics-driven placeholder wrestler. Verify it can settle into a standing pose. Record the launch command. Limb inputs and the shove test are the next slice of M1.
+**Launch:** From the repository root with a .NET 8-compatible SDK and a desktop display, run `dotnet run`. Press `Esc` to exit.
+
+**Verified:** Launched the Raylib scene on Linux and inspected the settled pose. `dotnet run -- --check-stance` runs the same 120 Hz simulation without a window. Across seconds 5–10, pelvis height held at 0.861 m, all eight sole corners stayed within 1.3 mm of the floor, and peak body speed was under 0.019 m/s.
+
+**Open issues:** No known blocker for the idle stance. Balance under player input is untested.
+
+**Next suggested task (M1b, pending assignment):** Add the Q/P leg and W/O arm targets, then try the step, plant, and shove test against the post.
 
 The owner assigns work one slice at a time. When handing a slice back, update the current state and next available task above with what actually works, how to run or verify it, and any unresolved issue. Treat the next task as a suggestion until assigned.
