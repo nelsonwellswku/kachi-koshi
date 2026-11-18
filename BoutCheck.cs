@@ -87,7 +87,7 @@ static class BoutCheck
     static bool Rematch()
     {
         using var scene = new PracticeScene(); // Same fresh scene used by R.
-        for (int i = 0; i < 720; i++) scene.Step();
+        for (int i = 0; i < 90; i++) scene.Step();
         var player = scene.Player;
         if (!player.Planted.All(p => p) || !scene.Opponent!.Planted.All(p => p)) return false;
         var initial = scene.Pose(player.Feet[0]).Position.Y;

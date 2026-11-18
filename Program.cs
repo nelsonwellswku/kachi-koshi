@@ -8,6 +8,7 @@ if (args is ["--check-stance"] or ["--check-shove"])
 
 if (args is ["--check-faceoff"]) return FaceoffCheck.Run();
 if (args is ["--check-bout"]) return BoutCheck.Run();
+if (args is ["--check-opponent"]) return OpponentCheck.Run();
 
 PracticeView.Run(practicePost: args is ["--practice-post"]);
 return 0;

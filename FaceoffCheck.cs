@@ -6,8 +6,8 @@ static class FaceoffCheck
 {
     public static int Run()
     {
-        using var scene = new PracticeScene();
-        using var baseline = new PracticeScene();
+        using var scene = new PracticeScene(computerOpponent: false);
+        using var baseline = new PracticeScene(computerOpponent: false);
         var opponent = scene.Opponent!;
         bool settled = true, idleHit = false;
         foreach (var rig in new[] { scene.Player, opponent })

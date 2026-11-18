@@ -82,8 +82,17 @@ static class PracticeView
             Raylib.DrawText("R  Rematch       Esc  Exit", 36, 605, 20, Straw);
             return;
         }
-        Raylib.DrawText("KACHI-KOSHI", 36, 30, 24, Color.RayWhite);
-        Raylib.DrawText("Tap Q, release to plant, then hold O to shove.", 37, 59, 16, Straw);
+        string stance = scene.RedPhase switch
+        {
+            OpponentPhase.Plant => "RED: PLANTING",
+            OpponentPhase.Shuffle => "RED: STEPPING",
+            OpponentPhase.Shove => "RED: SHOVING",
+            OpponentPhase.Recover => "RED: RECOVERING",
+            _ => "KACHI-KOSHI"
+        };
+        Raylib.DrawText(stance, 36, 30, 24, Color.RayWhite);
+        Raylib.DrawText(scene.RedPhase == OpponentPhase.Recover ? "Feet planted? Hold O to counter with your right palm."
+            : "Tap Q, release to plant, then hold O to shove.", 37, 59, 16, Straw);
         Raylib.DrawRectangle(0, 584, 1000, 66, Ink);
         DrawSide(24, "LEFT", "Q", "W", input.LeftKnee, input.LeftPalm, scene.Player.Planted[0]);
         DrawSide(348, "RIGHT", "P", "O", input.RightKnee, input.RightPalm, scene.Player.Planted[1]);

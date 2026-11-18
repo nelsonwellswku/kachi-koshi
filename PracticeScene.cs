@@ -21,12 +21,14 @@ sealed class PracticeScene : IDisposable
 
     readonly BufferPool pool = new();
     readonly Simulation sim;
+    readonly OpponentController? controller;
+    public OpponentPhase? RedPhase => controller?.Phase;
     public Wrestler Player { get; }
     public Wrestler? Opponent { get; }
     public float HitFlash { get; private set; }
     public BoutResult? Result { get; private set; }
 
-    public PracticeScene(bool practicePost = false)
+    public PracticeScene(bool practicePost = false, bool computerOpponent = true)
     {
         var contacts = new ContactState();
         sim = Simulation.Create(pool, new PracticeContacts(contacts), new Gravity(), new SolveDescription(16, 4));
@@ -41,6 +43,7 @@ sealed class PracticeScene : IDisposable
         {
             Opponent = new Wrestler(sim, new(stagger, .08f, -spacing), new Quaternion(0, 1, 0, 0));
             contacts.Register(Opponent);
+            if (computerOpponent) controller = new();
         }
     }
 
@@ -51,7 +54,14 @@ sealed class PracticeScene : IDisposable
     {
         if (Result.HasValue) return;
         Player.PrepareStep(input);
-        Opponent?.PrepareStep(default);
+        if (Opponent is { } red)
+        {
+            var pose = Pose(red.Pelvis);
+            var toBlue = Pose(Player.Pelvis).Position - pose.Position;
+            var local = Vector3.Transform(toBlue, Quaternion.Conjugate(pose.Orientation));
+            red.PrepareStep(controller?.Step(new Vector2(toBlue.X, toBlue.Z).Length(), local.X,
+                red.Planted[0] && red.Planted[1]) ?? default);
+        }
         sim.Timestep(StepTime);
         HitFlash = Player.PalmHit[0] || Player.PalmHit[1] ? .20f : Math.Max(0, HitFlash - StepTime);
         if (Opponent != null && (Player.Foul.HasValue || Opponent.Foul.HasValue))

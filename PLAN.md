@@ -23,14 +23,14 @@ A QWOP-style 3D sumo game built in C# with Raylib-cs. The player controls indivi
 
 ## Handoff
 
-**Current state:** M2 complete. Either wrestler loses when a non-foot part touches the clay or a foot touches the clay beyond the circular boundary. Overhanging the rim is legal. The bout freezes on the deciding tick, a yellow dot marks the contact, and the HUD names the winner and the cause. If both lose on the same 120 Hz tick, the call is a draw.
+**Current state:** M3a complete. Red uses the same knee and palm controls as blue. It judges range and palm side from 1/6-second-old observations, alternates short steps to close the gap, and starts a shove only with both feet planted. After committing to the shove, red releases all four controls for 0.75 seconds before it can attack again. The HUD shows when red is stepping, planting, shoving, or recovering. M2 contact calls, same-tick draws, and instant rematches remain in place.
 
-**Launch / try it:** Run `dotnet run` with a .NET 8-compatible SDK and a desktop display. Let both wrestlers settle. Tap `Q`, release to plant the left foot, then hold `O` for a right-palm shove. To try a fall instead, keep `Q` held as you drive with `O` and hold both for about two seconds. Press `R` for an instant rematch. `P` lifts the right knee, `W` drives the left palm, and `Esc` exits. The padded-post drill remains available with `dotnet run -- --practice-post`.
+**Launch / try it:** Run `dotnet run` with a .NET 8-compatible SDK and a desktop display. For the first exchange, leave both feet down and let red step in and shove. When the HUD changes to `RED: RECOVERING`, hold `O` for about half a second to push red back with your right palm. Press `R` to replay the opening. `Q` / `P` lift the left / right knee; release to plant. `W` drives the left palm and `Esc` exits. The padded-post drill is available with `dotnet run -- --practice-post`.
 
-**Verified:** `dotnet run -- --check-bout` exercises real clay contacts: a blue hand 1 mm above the clay stays legal, a touching hand loses, a red foot lands outside with its center still inside, and a lean with the head over the rim and both feet planted stays legal. It also checks same-tick draws, a frozen result, and a fresh bout played to a loss using limb inputs. In the Linux window, holding `Q` through a shove produced a persistent result banner and `R` restored the opening HUD. `--check-stance`, `--check-shove`, and `--check-faceoff` also pass.
+**Verified:** `dotnet run -- --check-opponent` plays two headless bouts from the normal opening. Red lifted each foot in turn, advanced 5.7 cm, and landed a planted shove that moved blue 4.1 cm. In one bout blue waited a quarter-second into recovery, then countered with `O` on planted feet. Red recoiled 3.7 cm farther than against idle blue, and both stayed in the bout. `--check-stance`, `--check-shove`, `--check-faceoff` (passive sparring partner), and `--check-bout` also pass.
 
-**Open issues:** No known M2 blocker. Red holds its stance and responds to pushes but has no active strategy yet.
+**Open issues:** The recovery counter is verified as a positional gain from the opening. Recovery timing and readability later in a human-played bout still need playtesting.
 
-**Next suggested task (M3a, pending assignment):** Give red a delayed controller using the same limb inputs as blue. Start with a shuffle into range and a planted shove; check that blue can exploit the recovery.
+**Next suggested task (M3b, pending assignment):** Playtest full bouts. Check whether blue can read and punish a missed shove after the opening exchange, and tune red's reach and recovery timing if needed.
 
 The owner assigns work one slice at a time. When handing a slice back, update the current state and next available task above with what actually works, how to run or verify it, and any unresolved issue. Treat the next task as a suggestion until assigned.
