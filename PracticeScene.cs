@@ -21,23 +21,67 @@ sealed class PracticeScene : IDisposable
 
     readonly BufferPool pool = new();
     readonly Simulation sim;
+    public Wrestler Player { get; }
+    public Wrestler? Opponent { get; }
+    public float HitFlash { get; private set; }
+
+    public PracticeScene(bool practicePost = false)
+    {
+        var contacts = new ContactState();
+        sim = Simulation.Create(pool, new PracticeContacts(contacts), new Gravity(), new SolveDescription(16, 4));
+        contacts.Floor = StaticBox(FloorCenter, FloorSize);
+        if (practicePost) contacts.Post = StaticBox(PostCenter, PostSize);
+        // Stagger the face-off just enough to put the chest in the right palm's path.
+        float spacing = practicePost ? .65f : .37f;
+        float stagger = practicePost ? 0 : .12f;
+        Player = new Wrestler(sim, new(-stagger, .08f, spacing), Quaternion.Identity);
+        contacts.Register(Player);
+        if (!practicePost)
+        {
+            Opponent = new Wrestler(sim, new(stagger, .08f, -spacing), new Quaternion(0, 1, 0, 0));
+            contacts.Register(Opponent);
+        }
+    }
+
+    public RigidPose Pose(Segment part) => sim.Bodies[part.Body].Pose;
+    public BodyVelocity Velocity(Segment part) => sim.Bodies[part.Body].Velocity;
+    public void Step(LimbInput input = default)
+    {
+        Player.PrepareStep(input);
+        Opponent?.PrepareStep(default);
+        sim.Timestep(StepTime);
+        HitFlash = Player.PalmHit[0] || Player.PalmHit[1] ? .20f : Math.Max(0, HitFlash - StepTime);
+    }
+
+    StaticHandle StaticBox(Vector3 position, Vector3 size) => sim.Statics.Add(new StaticDescription(position,
+        sim.Shapes.Add(new Box(size.X, size.Y, size.Z))));
+
+    public void Dispose()
+    {
+        sim.Dispose();
+        pool.Clear();
+    }
+}
+
+sealed class Wrestler
+{
+    readonly Simulation sim;
+    readonly Quaternion facing;
     readonly List<Segment> parts = new();
+    readonly LimbDrive[] drives = [new(), new()];
     public IReadOnlyList<Segment> Parts => parts;
     public Segment Pelvis { get; }
     public Segment[] Feet { get; } = new Segment[2];
-    public Segment[] Forearms => Contacts.Forearms;
-    public ContactState Contacts { get; } = new();
-    public float PadFlash { get; private set; }
-    readonly LimbDrive[] drives = [new(), new()];
+    public Segment[] Forearms { get; } = new Segment[2];
+    public bool[] Planted { get; } = new bool[2];
+    public bool[] PalmHit { get; } = new bool[2];
+    public bool BodyDown { get; set; }
 
-    public PracticeScene()
+    public Wrestler(Simulation sim, Vector3 origin, Quaternion facing)
     {
-        sim = Simulation.Create(pool, new PracticeContacts(Contacts), new Gravity(), new SolveDescription(16, 4));
-        Contacts.Floor = StaticBox(FloorCenter, FloorSize);
-        Contacts.Post = StaticBox(PostCenter, PostSize);
-
-        // Bind pose is a shallow squat, initially 8 cm above the clay, facing -Z.
-        Vector3 At(float x, float y, float z) => new(x, y + .08f, z + .65f);
+        this.sim = sim;
+        this.facing = facing;
+        Vector3 At(float x, float y, float z) => origin + Vector3.Transform(new Vector3(x, y, z), facing);
         Pelvis = BoxPart(At(0, .87f, .04f), new(.63f, .26f, .43f), 18, Surface.Belt);
         var chest = Limb(At(0, 1.10f, .03f), At(0, 1.31f, -.03f), .32f, 31);
         var head = Limb(At(0, 1.64f, -.06f), At(0, 1.72f, -.06f), .16f, 6, Surface.Head);
@@ -54,7 +98,6 @@ sealed class PracticeScene : IDisposable
             var shin = Limb(knee, ankle, .098f, 5);
             var foot = BoxPart(At(s * .39f, .075f, -.01f), new(.25f, .15f, .43f), 3, Surface.Skin);
             Feet[i] = foot;
-            Contacts.Feet[i] = foot.Body;
             drives[i].Hip = Join(Pelvis, thigh, hip, 235);
             drives[i].Knee = Join(thigh, shin, knee, 240);
             drives[i].Ankle = Join(shin, foot, ankle, 135);
@@ -70,26 +113,21 @@ sealed class PracticeScene : IDisposable
         }
         sim.Solver.Add(Pelvis.Body, new OneBodyAngularServo
         {
-            TargetOrientation = Quaternion.Identity, SpringSettings = new(2, 2), ServoSettings = new(3, 0, 18)
+            TargetOrientation = facing, SpringSettings = new(2, 2), ServoSettings = new(3, 0, 18)
         });
     }
 
-    public RigidPose Pose(Segment part) => sim.Bodies[part.Body].Pose;
-    public BodyVelocity Velocity(Segment part) => sim.Bodies[part.Body].Velocity;
-    public void Step(LimbInput input = default)
+    public void PrepareStep(LimbInput input)
     {
         drives[0].Update(sim.Solver, input.LeftKnee, input.LeftPalm);
         drives[1].Update(sim.Solver, input.RightKnee, input.RightPalm);
-        Contacts.Clear();
-        sim.Timestep(StepTime);
-        PadFlash = Contacts.OnPad[0] || Contacts.OnPad[1] ? .20f : Math.Max(0, PadFlash - StepTime);
+        Array.Clear(Planted);
+        Array.Clear(PalmHit);
+        BodyDown = false;
     }
 
-    StaticHandle StaticBox(Vector3 position, Vector3 size) => sim.Statics.Add(new StaticDescription(position,
-        sim.Shapes.Add(new Box(size.X, size.Y, size.Z))));
-
     Segment BoxPart(Vector3 position, Vector3 size, float mass, Surface surface) =>
-        Add(new Box(size.X, size.Y, size.Z), new(position), mass, size, false, surface);
+        Add(new Box(size.X, size.Y, size.Z), new(position, facing), mass, size, false, surface);
 
     Segment Limb(Vector3 a, Vector3 b, float radius, float mass, Surface surface = Surface.Skin)
     {
@@ -98,7 +136,7 @@ sealed class PracticeScene : IDisposable
         if (axis.Y < 0) axis = -axis;
         var rotation = Quaternion.Normalize(new Quaternion(Vector3.Cross(Vector3.UnitY, axis), 1 + axis.Y));
         float length = Vector3.Distance(a, b);
-        return Add(new Capsule(radius, length), new((a + b) / 2, rotation), mass,
+        return Add(new Capsule(radius, length), new((a + b) / 2, rotation * facing), mass,
             new(radius, length, radius), true, surface);
     }
 
@@ -114,8 +152,8 @@ sealed class PracticeScene : IDisposable
 
     PoseMotor Join(Segment parent, Segment child, Vector3 pivot, float torque)
     {
-        var a = Pose(parent);
-        var b = Pose(child);
+        var a = sim.Bodies[parent.Body].Pose;
+        var b = sim.Bodies[child.Body].Pose;
         var invA = Quaternion.Conjugate(a.Orientation);
         sim.Solver.Add(parent.Body, child.Body, new BallSocket
         {
@@ -128,12 +166,8 @@ sealed class PracticeScene : IDisposable
             TargetRelativeRotationLocalA = invA * b.Orientation,
             SpringSettings = new(36, 3), ServoSettings = new(8, 0, torque)
         };
-        return new(sim.Solver.Add(parent.Body, child.Body, servo), invA, b.Orientation, servo);
-    }
-
-    public void Dispose()
-    {
-        sim.Dispose();
-        pool.Clear();
+        // Express both bind frames relative to this wrestler so pitch follows its lateral axis.
+        return new(sim.Solver.Add(parent.Body, child.Body, servo),
+            invA * facing, Quaternion.Conjugate(facing) * b.Orientation, servo);
     }
 }

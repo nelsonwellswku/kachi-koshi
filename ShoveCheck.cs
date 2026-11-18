@@ -9,9 +9,9 @@ static class ShoveCheck
     public static int Run(PracticeScene scene)
     {
         bool good = Attempt(scene, latePlant: false, mirror: false);
-        using var unplanted = new PracticeScene();
+        using var unplanted = new PracticeScene(practicePost: true);
         bool poor = Attempt(unplanted, latePlant: true, mirror: false);
-        using var otherSide = new PracticeScene();
+        using var otherSide = new PracticeScene(practicePost: true);
         bool mirror = Attempt(otherSide, latePlant: false, mirror: true);
         return good && poor && mirror ? 0 : 1;
     }
@@ -20,12 +20,13 @@ static class ShoveCheck
     {
         for (int i = 0; i < 720; i++) scene.Step();
         int leg = mirror ? 1 : 0, hand = 1 - leg;
-        var foot = scene.Feet[leg];
-        var arm = scene.Forearms[hand];
+        var player = scene.Player;
+        var foot = player.Feet[leg];
+        var arm = player.Forearms[hand];
         float Reach()
         {
             var pose = scene.Pose(arm);
-            var pelvis = scene.Pose(scene.Pelvis);
+            var pelvis = scene.Pose(player.Pelvis);
             var palm = pose.Position + Vector3.Transform(Vector3.UnitY * arm.Size.Y / 2, pose.Orientation);
             return -Vector3.Transform(palm - pelvis.Position, Quaternion.Conjugate(pelvis.Orientation)).Z;
         }
@@ -38,25 +39,25 @@ static class ShoveCheck
         {
             if (i == drive)
             {
-                groundedAtDrive = scene.Contacts.Planted[leg];
+                groundedAtDrive = player.Planted[leg];
                 advance = start.Z - scene.Pose(foot).Position.Z;
             }
             bool knee = i < (latePlant ? 100 : 20), palm = i >= drive && i < retract;
             scene.Step(mirror ? new(RightKnee: knee, LeftPalm: palm) : new(LeftKnee: knee, RightPalm: palm));
-            if (i < drive && !scene.Contacts.Planted[leg])
+            if (i < drive && !player.Planted[leg])
                 lift = Math.Max(lift, scene.Pose(foot).Position.Y - start.Y);
             if (palm)
             {
                 maxReach = Math.Max(maxReach, Reach());
-                hit |= scene.Contacts.OnPad[hand];
-                hitWhilePlanted |= scene.Contacts.OnPad[hand] && scene.Contacts.Planted[leg];
+                hit |= player.PalmHit[hand];
+                hitWhilePlanted |= player.PalmHit[hand] && player.Planted[leg];
             }
-            minUp = Math.Min(minUp, Vector3.Transform(Vector3.UnitY, scene.Pose(scene.Pelvis).Orientation).Y);
-            bodyDown |= scene.Contacts.BodyDown;
+            minUp = Math.Min(minUp, Vector3.Transform(Vector3.UnitY, scene.Pose(player.Pelvis).Orientation).Y);
+            bodyDown |= player.BodyDown;
         }
 
-        bool standing = !bodyDown && minUp > .90f && scene.Pose(scene.Pelvis).Position.Y > .78f
-            && scene.Contacts.Planted.All(contact => contact);
+        bool standing = !bodyDown && minUp > .90f && scene.Pose(player.Pelvis).Position.Y > .78f
+            && player.Planted.All(contact => contact);
         bool passed = lift > .02f && advance > .09f && (latePlant
             ? !groundedAtDrive && hit && bodyDown
             : groundedAtDrive && (mirror || hitWhilePlanted) && standing

@@ -23,14 +23,14 @@ A QWOP-style 3D sumo game built in C# with Raylib-cs. The player controls indivi
 
 ## Handoff
 
-**Current state:** M1b complete. All four limb controls drive strength-limited joint motors. From rest, the wrestler can step forward onto the left foot, shove the fixed post with the right palm, and stay standing. The HUD reports each foot's contact with the clay; the pad flashes when a palm hits its front face.
+**Current state:** M2a complete. The blue-belt player faces a passive red-belt opponent. Both use the same jointed rig and settle on their feet. Each wrestler collides with the clay and the other wrestler; overlapping parts of the same rig ignore each other. A right-palm shove rocks the opponent back and flashes `PALM CONTACT` on the HUD.
 
-**Launch / try it:** From the repository root with a .NET 8-compatible SDK and a desktop display, run `dotnet run`. Let the wrestler settle. Tap `Q` for about 0.17 s, release, then hold `O` for about 0.4 s as the left foot lands. Release `O` to retract. Press `R` to reset and try again, this time holding `Q` through the shove. `P` lifts the right knee, `W` drives the left palm, and `Esc` exits.
+**Launch / try it:** Run `dotnet run` with a .NET 8-compatible SDK and a desktop display. Let both wrestlers settle. Tap `Q` for about 0.17 s, release, then hold `O` for about 0.4 s as the left foot lands. Watch the red belt move back. `P` lifts the right knee, `W` drives the left palm, `R` resets both rigs, and `Esc` exits. For the original padded-post drill, run `dotnet run -- --practice-post`.
 
-**Verified:** `dotnet run -- --check-stance` passes. `dotnet run -- --check-shove` replays both attempts at 120 Hz. The early release planted the left foot 12.5 cm forward; the right palm contacted the pad and the wrestler stayed up. With only the `Q` release delayed, the left foot was airborne at the start of the drive, the palm still hit, and the body fell onto the clay. The mirrored `P`/`W` step, reach, and retraction also passed. In the Linux window, keyboard input reproduced the pad flash, recovery, fall, and reset.
+**Verified:** `dotnet run -- --check-faceoff` checks both stances over the last two seconds of a six-second settle at 120 Hz. Neither palm touched the other rig at rest. The right palm hit during the drive, and the opponent's pelvis moved 3.0 cm farther back than in an otherwise identical replay with the step alone. The original `--check-stance` and `--check-shove` checks also pass.
 
-**Open issues:** No known blocker for the practice drill. Contact filtering currently assumes one wrestler: it permits collisions with the scenery but suppresses all body-to-body contacts.
+**Open issues:** No known M2a blocker. Falls and ring-outs do not end the face-off yet.
 
-**Next suggested task (M2a, pending assignment):** Spawn a second wrestler facing the player. Filter contacts by wrestler so a palm can push the other rig without its own overlapping joints colliding. Verify both settle and the opponent responds to a shove before adding loss detection.
+**Next suggested task (M2b, pending assignment):** Use clay contact points to decide losses for either wrestler. Check a hand touching down, a foot landing outside, and a lean across the boundary with both feet still inside. Show the result and let `R` start a fresh bout.
 
 The owner assigns work one slice at a time. When handing a slice back, update the current state and next available task above with what actually works, how to run or verify it, and any unresolved issue. Treat the next task as a suggestion until assigned.
