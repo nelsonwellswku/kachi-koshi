@@ -11,8 +11,15 @@ sealed class OpponentController
     readonly record struct Sight(float Gap, float Side);
     readonly Sight[] history = new Sight[ObserveDelay]; // 1/6 s at 120 Hz.
     int cursor, ticks = Opening;
-    bool leftStep, rightPalm;
+    bool leftStep, rightPalm, shoveConnected;
     public OpponentPhase Phase { get; private set; }
+    public bool RecoveringFromMiss => Phase == OpponentPhase.Recover && !shoveConnected;
+
+    // Sample after the physics tick, including the last tick with the arm driven.
+    public void RecordPalmContact(bool left, bool right)
+    {
+        if (Phase == OpponentPhase.Shove) shoveConnected |= rightPalm ? right : left;
+    }
 
     public LimbInput Step(float gap, float side, bool planted)
     {
@@ -38,7 +45,10 @@ sealed class OpponentController
                     if (seen.Gap <= Reach)
                     {
                         Phase = OpponentPhase.Shove;
-                        rightPalm = seen.Side >= 0;
+                        // Follow a landed shove with the other hand while blue still
+                        // looks square between the shoulders. A stagger can bait that palm wide.
+                        rightPalm = shoveConnected && Math.Abs(seen.Side) < .28f ? !rightPalm : seen.Side >= 0;
+                        shoveConnected = false;
                         ticks = Drive;
                     }
                     else

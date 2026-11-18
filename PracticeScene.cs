@@ -23,6 +23,7 @@ sealed class PracticeScene : IDisposable
     readonly Simulation sim;
     readonly OpponentController? controller;
     public OpponentPhase? RedPhase => controller?.Phase;
+    public bool RedMissed => controller?.RecoveringFromMiss == true;
     public Wrestler Player { get; }
     public Wrestler? Opponent { get; }
     public float HitFlash { get; private set; }
@@ -63,6 +64,7 @@ sealed class PracticeScene : IDisposable
                 red.Planted[0] && red.Planted[1]) ?? default);
         }
         sim.Timestep(StepTime);
+        if (Opponent is { } rival) controller?.RecordPalmContact(rival.PalmHit[0], rival.PalmHit[1]);
         HitFlash = Player.PalmHit[0] || Player.PalmHit[1] ? .20f : Math.Max(0, HitFlash - StepTime);
         if (Opponent != null && (Player.Foul.HasValue || Opponent.Foul.HasValue))
             Result = new BoutResult(Player.Foul, Opponent.Foul);

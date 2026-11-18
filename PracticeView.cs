@@ -87,10 +87,10 @@ static class PracticeView
             OpponentPhase.Plant => "RED: PLANTING",
             OpponentPhase.Shuffle => "RED: STEPPING",
             OpponentPhase.Shove => "RED: SHOVING",
-            OpponentPhase.Recover => "RED: RECOVERING",
+            OpponentPhase.Recover => scene.RedMissed ? "RED MISSED - COUNTER!" : "RED: RECOVERING",
             _ => "KACHI-KOSHI"
         };
-        Raylib.DrawText(stance, 36, 30, 24, Color.RayWhite);
+        Raylib.DrawText(stance, 36, 30, 24, scene.RedMissed ? Color.Yellow : Color.RayWhite);
         Raylib.DrawText(scene.RedPhase == OpponentPhase.Recover ? "Feet planted? Hold O to counter with your right palm."
             : "Tap Q, release to plant, then hold O to shove.", 37, 59, 16, Straw);
         Raylib.DrawRectangle(0, 584, 1000, 66, Ink);
