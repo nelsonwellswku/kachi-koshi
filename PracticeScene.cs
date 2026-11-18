@@ -17,7 +17,7 @@ sealed class PracticeScene : IDisposable
     public static readonly Vector3 FloorSize = new(9, .2f, 9);
     public static readonly Vector3 FloorCenter = -Vector3.UnitY * FloorSize.Y / 2;
     public static readonly Vector3 PostSize = new(.44f, 1.55f, .44f);
-    public static readonly Vector3 PostCenter = new(.50f, PostSize.Y / 2, -.95f);
+    public static readonly Vector3 PostCenter = new(.50f, PostSize.Y / 2, -.08f);
 
     readonly BufferPool pool = new();
     readonly Simulation sim;
@@ -25,12 +25,16 @@ sealed class PracticeScene : IDisposable
     public IReadOnlyList<Segment> Parts => parts;
     public Segment Pelvis { get; }
     public Segment[] Feet { get; } = new Segment[2];
+    public Segment[] Forearms => Contacts.Forearms;
+    public ContactState Contacts { get; } = new();
+    public float PadFlash { get; private set; }
+    readonly LimbDrive[] drives = [new(), new()];
 
     public PracticeScene()
     {
-        sim = Simulation.Create(pool, new PracticeContacts(), new Gravity(), new SolveDescription(16, 4));
-        StaticBox(FloorCenter, FloorSize);
-        StaticBox(PostCenter, PostSize);
+        sim = Simulation.Create(pool, new PracticeContacts(Contacts), new Gravity(), new SolveDescription(16, 4));
+        Contacts.Floor = StaticBox(FloorCenter, FloorSize);
+        Contacts.Post = StaticBox(PostCenter, PostSize);
 
         // Bind pose is a shallow squat, initially 8 cm above the clay, facing -Z.
         Vector3 At(float x, float y, float z) => new(x, y + .08f, z + .65f);
@@ -50,17 +54,19 @@ sealed class PracticeScene : IDisposable
             var shin = Limb(knee, ankle, .098f, 5);
             var foot = BoxPart(At(s * .39f, .075f, -.01f), new(.25f, .15f, .43f), 3, Surface.Skin);
             Feet[i] = foot;
-            Join(Pelvis, thigh, hip, 235);
-            Join(thigh, shin, knee, 240);
-            Join(shin, foot, ankle, 135);
+            Contacts.Feet[i] = foot.Body;
+            drives[i].Hip = Join(Pelvis, thigh, hip, 235);
+            drives[i].Knee = Join(thigh, shin, knee, 240);
+            drives[i].Ankle = Join(shin, foot, ankle, 135);
 
             var shoulder = At(s * .28f, 1.38f, -.015f);
             var elbow = At(s * .46f, 1.08f, -.04f);
             var palm = At(s * .48f, 1.14f, -.30f);
             var upperArm = Limb(shoulder, elbow, .105f, 4);
             var forearm = Limb(elbow, palm, .09f, 3);
-            Join(chest, upperArm, shoulder, 42);
-            Join(upperArm, forearm, elbow, 28);
+            Forearms[i] = forearm;
+            drives[i].Shoulder = Join(chest, upperArm, shoulder, 42);
+            drives[i].Elbow = Join(upperArm, forearm, elbow, 28);
         }
         sim.Solver.Add(Pelvis.Body, new OneBodyAngularServo
         {
@@ -70,9 +76,16 @@ sealed class PracticeScene : IDisposable
 
     public RigidPose Pose(Segment part) => sim.Bodies[part.Body].Pose;
     public BodyVelocity Velocity(Segment part) => sim.Bodies[part.Body].Velocity;
-    public void Step() => sim.Timestep(StepTime);
+    public void Step(LimbInput input = default)
+    {
+        drives[0].Update(sim.Solver, input.LeftKnee, input.LeftPalm);
+        drives[1].Update(sim.Solver, input.RightKnee, input.RightPalm);
+        Contacts.Clear();
+        sim.Timestep(StepTime);
+        PadFlash = Contacts.OnPad[0] || Contacts.OnPad[1] ? .20f : Math.Max(0, PadFlash - StepTime);
+    }
 
-    void StaticBox(Vector3 position, Vector3 size) => sim.Statics.Add(new StaticDescription(position,
+    StaticHandle StaticBox(Vector3 position, Vector3 size) => sim.Statics.Add(new StaticDescription(position,
         sim.Shapes.Add(new Box(size.X, size.Y, size.Z))));
 
     Segment BoxPart(Vector3 position, Vector3 size, float mass, Surface surface) =>
@@ -99,7 +112,7 @@ sealed class PracticeScene : IDisposable
         return part;
     }
 
-    void Join(Segment parent, Segment child, Vector3 pivot, float torque)
+    PoseMotor Join(Segment parent, Segment child, Vector3 pivot, float torque)
     {
         var a = Pose(parent);
         var b = Pose(child);
@@ -110,11 +123,12 @@ sealed class PracticeScene : IDisposable
             LocalOffsetB = Vector3.Transform(pivot - b.Position, Quaternion.Conjugate(b.Orientation)),
             SpringSettings = new(55, 1)
         });
-        sim.Solver.Add(parent.Body, child.Body, new AngularServo
+        var servo = new AngularServo
         {
             TargetRelativeRotationLocalA = invA * b.Orientation,
             SpringSettings = new(36, 3), ServoSettings = new(8, 0, torque)
-        });
+        };
+        return new(sim.Solver.Add(parent.Body, child.Body, servo), invA, b.Orientation, servo);
     }
 
     public void Dispose()
