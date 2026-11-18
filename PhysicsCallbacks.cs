@@ -75,9 +75,18 @@ struct PracticeContacts(ContactState contacts) : INarrowPhaseCallbacks
             }
             else if (pair.B.StaticHandle == contacts.Floor)
             {
-                if (owner.Feet[0].Body == body) owner.Planted[0] |= normal.Y > .7f;
-                else if (owner.Feet[1].Body == body) owner.Planted[1] |= normal.Y > .7f;
+                int foot = owner.Feet[0].Body == body ? 0 : owner.Feet[1].Body == body ? 1 : -1;
+                if (foot >= 0) owner.Planted[foot] |= normal.Y > .7f;
                 else owner.BodyDown = true;
+
+                // The HUD tolerates a 2 mm gap; a bout call needs actual clay contact.
+                if (depth < 0 || contacts.Post.HasValue) continue;
+                var point = sim.Bodies[body].Pose.Position + offset;
+                if (foot < 0)
+                    owner.RecordFoul(PalmIndex(owner, body, offset) >= 0
+                        ? LossReason.HandDown : LossReason.BodyDown, point);
+                else if (point.X * point.X + point.Z * point.Z > PracticeScene.RingRadius * PracticeScene.RingRadius)
+                    owner.RecordFoul(LossReason.FootOutside, point);
             }
             else if (pair.B.StaticHandle == contacts.Post && normal.Z > .5f)
                 RecordPalm(owner, body, offset);
@@ -87,12 +96,19 @@ struct PracticeContacts(ContactState contacts) : INarrowPhaseCallbacks
 
     void RecordPalm(Wrestler owner, BodyHandle body, Vector3 offset)
     {
+        int palm = PalmIndex(owner, body, offset);
+        if (palm >= 0) owner.PalmHit[palm] = true;
+    }
+
+    int PalmIndex(Wrestler owner, BodyHandle body, Vector3 offset)
+    {
         for (int i = 0; i < 2; i++)
         {
             var arm = owner.Forearms[i];
             if (arm.Body != body) continue;
             var local = Vector3.Transform(offset, Quaternion.Conjugate(sim.Bodies[body].Pose.Orientation));
-            if (local.Y >= arm.Size.Y / 2 - .015f) owner.PalmHit[i] = true;
+            if (local.Y >= arm.Size.Y / 2 - .015f) return i;
         }
+        return -1;
     }
 }

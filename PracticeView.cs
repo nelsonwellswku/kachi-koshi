@@ -47,6 +47,11 @@ static class PracticeView
             DrawWrestler(scene, scene.Player, Belt, Skin);
             if (scene.Opponent is { } opponent)
                 DrawWrestler(scene, opponent, Pad, new Color(185, 129, 96, 255));
+            if (scene.Result is { } result)
+            {
+                MarkContact(result.Player);
+                MarkContact(result.Opponent);
+            }
             Raylib.EndMode3D();
             DrawHud(scene, input);
             Raylib.EndDrawing();
@@ -59,6 +64,24 @@ static class PracticeView
     {
         Raylib.DrawRectangle(20, 20, 465, 66, Ink);
         Raylib.DrawRectangle(20, 20, 4, 66, Straw);
+        if (scene.Result is { } result)
+        {
+            bool draw = result.Player.HasValue && result.Opponent.HasValue;
+            string title = draw ? "DRAW" : result.Player.HasValue ? "RED WINS" : "BLUE WINS";
+            var reason = (result.Player ?? result.Opponent)!.Value.Reason;
+            string call = reason switch
+            {
+                LossReason.FootOutside => "foot landed outside the ring",
+                LossReason.HandDown => "hand touched the clay",
+                _ => "body touched the clay"
+            };
+            Raylib.DrawText(title, 36, 30, 24, Color.RayWhite);
+            Raylib.DrawText(draw ? "Both lost on the same tick." :
+                $"{(result.Player.HasValue ? "Blue" : "Red")}: {call}.", 37, 59, 16, Straw);
+            Raylib.DrawRectangle(0, 584, 1000, 66, Ink);
+            Raylib.DrawText("R  Rematch       Esc  Exit", 36, 605, 20, Straw);
+            return;
+        }
         Raylib.DrawText("KACHI-KOSHI", 36, 30, 24, Color.RayWhite);
         Raylib.DrawText("Tap Q, release to plant, then hold O to shove.", 37, 59, 16, Straw);
         Raylib.DrawRectangle(0, 584, 1000, 66, Ink);
@@ -69,6 +92,12 @@ static class PracticeView
             ? (post ? "PAD CONTACT" : "PALM CONTACT") : (post ? "PRACTICE POST" : "FACE-OFF"),
             765, 596, 18, Straw);
         Raylib.DrawText("R  Reset     Esc  Exit", 765, 623, 14, Color.RayWhite);
+    }
+
+    static void MarkContact(Foul? foul)
+    {
+        if (foul is { } f)
+            Raylib.DrawSphere(new(f.Point.X, .025f, f.Point.Z), .06f, Color.Yellow);
     }
 
     static void DrawSide(int x, string side, string legKey, string handKey, bool lift, bool reach, bool ground)

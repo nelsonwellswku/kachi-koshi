@@ -23,14 +23,14 @@ A QWOP-style 3D sumo game built in C# with Raylib-cs. The player controls indivi
 
 ## Handoff
 
-**Current state:** M2a complete. The blue-belt player faces a passive red-belt opponent. Both use the same jointed rig and settle on their feet. Each wrestler collides with the clay and the other wrestler; overlapping parts of the same rig ignore each other. A right-palm shove rocks the opponent back and flashes `PALM CONTACT` on the HUD.
+**Current state:** M2 complete. Either wrestler loses when a non-foot part touches the clay or a foot touches the clay beyond the circular boundary. Overhanging the rim is legal. The bout freezes on the deciding tick, a yellow dot marks the contact, and the HUD names the winner and the cause. If both lose on the same 120 Hz tick, the call is a draw.
 
-**Launch / try it:** Run `dotnet run` with a .NET 8-compatible SDK and a desktop display. Let both wrestlers settle. Tap `Q` for about 0.17 s, release, then hold `O` for about 0.4 s as the left foot lands. Watch the red belt move back. `P` lifts the right knee, `W` drives the left palm, `R` resets both rigs, and `Esc` exits. For the original padded-post drill, run `dotnet run -- --practice-post`.
+**Launch / try it:** Run `dotnet run` with a .NET 8-compatible SDK and a desktop display. Let both wrestlers settle. Tap `Q`, release to plant the left foot, then hold `O` for a right-palm shove. To try a fall instead, keep `Q` held as you drive with `O` and hold both for about two seconds. Press `R` for an instant rematch. `P` lifts the right knee, `W` drives the left palm, and `Esc` exits. The padded-post drill remains available with `dotnet run -- --practice-post`.
 
-**Verified:** `dotnet run -- --check-faceoff` checks both stances over the last two seconds of a six-second settle at 120 Hz. Neither palm touched the other rig at rest. The right palm hit during the drive, and the opponent's pelvis moved 3.0 cm farther back than in an otherwise identical replay with the step alone. The original `--check-stance` and `--check-shove` checks also pass.
+**Verified:** `dotnet run -- --check-bout` exercises real clay contacts: a blue hand 1 mm above the clay stays legal, a touching hand loses, a red foot lands outside with its center still inside, and a lean with the head over the rim and both feet planted stays legal. It also checks same-tick draws, a frozen result, and a fresh bout played to a loss using limb inputs. In the Linux window, holding `Q` through a shove produced a persistent result banner and `R` restored the opening HUD. `--check-stance`, `--check-shove`, and `--check-faceoff` also pass.
 
-**Open issues:** No known M2a blocker. Falls and ring-outs do not end the face-off yet.
+**Open issues:** No known M2 blocker. Red holds its stance and responds to pushes but has no active strategy yet.
 
-**Next suggested task (M2b, pending assignment):** Use clay contact points to decide losses for either wrestler. Check a hand touching down, a foot landing outside, and a lean across the boundary with both feet still inside. Show the result and let `R` start a fresh bout.
+**Next suggested task (M3a, pending assignment):** Give red a delayed controller using the same limb inputs as blue. Start with a shuffle into range and a planted shove; check that blue can exploit the recovery.
 
 The owner assigns work one slice at a time. When handing a slice back, update the current state and next available task above with what actually works, how to run or verify it, and any unresolved issue. Treat the next task as a suggestion until assigned.

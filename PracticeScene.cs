@@ -24,6 +24,7 @@ sealed class PracticeScene : IDisposable
     public Wrestler Player { get; }
     public Wrestler? Opponent { get; }
     public float HitFlash { get; private set; }
+    public BoutResult? Result { get; private set; }
 
     public PracticeScene(bool practicePost = false)
     {
@@ -43,14 +44,18 @@ sealed class PracticeScene : IDisposable
         }
     }
 
-    public RigidPose Pose(Segment part) => sim.Bodies[part.Body].Pose;
-    public BodyVelocity Velocity(Segment part) => sim.Bodies[part.Body].Velocity;
+    public BodyReference Body(Segment part) => sim.Bodies[part.Body];
+    public RigidPose Pose(Segment part) => Body(part).Pose;
+    public BodyVelocity Velocity(Segment part) => Body(part).Velocity;
     public void Step(LimbInput input = default)
     {
+        if (Result.HasValue) return;
         Player.PrepareStep(input);
         Opponent?.PrepareStep(default);
         sim.Timestep(StepTime);
         HitFlash = Player.PalmHit[0] || Player.PalmHit[1] ? .20f : Math.Max(0, HitFlash - StepTime);
+        if (Opponent != null && (Player.Foul.HasValue || Opponent.Foul.HasValue))
+            Result = new BoutResult(Player.Foul, Opponent.Foul);
     }
 
     StaticHandle StaticBox(Vector3 position, Vector3 size) => sim.Statics.Add(new StaticDescription(position,
@@ -76,6 +81,13 @@ sealed class Wrestler
     public bool[] Planted { get; } = new bool[2];
     public bool[] PalmHit { get; } = new bool[2];
     public bool BodyDown { get; set; }
+    public Foul? Foul { get; private set; }
+
+    public void RecordFoul(LossReason reason, Vector3 point)
+    {
+        // Multiple contacts can arrive in one tick. Prefer the more specific touchdown.
+        if (Foul == null || reason > Foul.Value.Reason) Foul = new(reason, point);
+    }
 
     public Wrestler(Simulation sim, Vector3 origin, Quaternion facing)
     {
@@ -124,6 +136,7 @@ sealed class Wrestler
         Array.Clear(Planted);
         Array.Clear(PalmHit);
         BodyDown = false;
+        Foul = null;
     }
 
     Segment BoxPart(Vector3 position, Vector3 size, float mass, Surface surface) =>
